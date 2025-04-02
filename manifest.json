@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "УПД: Убираем хвост для сканирования марок",
+  "version": "2025.04.02.01",
+  "description": "Убираем хвост для сканирования марок в УПД на сайте clothes.crpt.ru (честного знакак)",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://clothes.crpt.ru/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://clothes.crpt.ru/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
