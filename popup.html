@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Тест нажатия кнопки</title>
+  <title>УПД: Обработка КИЗ</title>
   <style>
     body {
       width: 300px;
@@ -99,15 +99,7 @@
   </style>
 </head>
 <body>
-  <h1>Тест нажатия кнопки "Добавить вручную"</h1>
-  
-  <button id="click-button-test">Нажать кнопку "Добавить вручную"</button>
-  
-  <div id="status" style="display: none;"></div>
-  
-  <hr style="margin: 15px 0;">
-  
-  <h1>Тест чтения CSV-файла</h1>
+  <h1>Обработка CSV-файла с КИЗ</h1>
   
   <div class="file-section">
     <label for="csv-file-input">Выберите CSV-файл с КИЗ:</label>
@@ -117,11 +109,9 @@
   
   <button id="process-csv-button" class="secondary-btn" disabled>Обработать CSV-файл</button>
   
-  <button id="fill-kiz-button" class="action-btn" disabled>Заполнить поле КИЗ</button>
-  
   <button id="fill-multiple-kiz-button" class="action-btn" disabled>Заполнить все поля КИЗ из CSV</button>
   
-  <button id="find-last-index-button" class="info-btn">Найти последний индекс полей КИЗ</button>
+  <div id="status" style="display: none;"></div>
   
   <div class="note">
     <strong>Примечание:</strong> Для просмотра логов откройте консоль расширения:

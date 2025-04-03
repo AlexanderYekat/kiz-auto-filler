@@ -3,19 +3,12 @@ console.log('popup.js загружен');
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded сработал');
   
-  // Элементы для теста нажатия кнопки
-  const clickButtonTestBtn = document.getElementById('click-button-test');
-  const statusDiv = document.getElementById('status');
-  
-  console.log('Найдена кнопка:', clickButtonTestBtn);
-  
-  // Элементы для теста обработки CSV
+  // Элементы для обработки CSV
   const csvFileInput = document.getElementById('csv-file-input');
   const csvFileInfo = document.getElementById('csv-file-info');
   const processCsvButton = document.getElementById('process-csv-button');
-  const fillKizButton = document.getElementById('fill-kiz-button');
   const fillMultipleKizButton = document.getElementById('fill-multiple-kiz-button');
-  const findLastIndexButton = document.getElementById('find-last-index-button');
+  const statusDiv = document.getElementById('status');
 
   // Глобальная переменная для хранения данных КИЗ
   let globalKizValues = [];
@@ -35,33 +28,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 10000);
     }
   }
-
-  // Слушатель кнопки "Тест нажатия кнопки"
-  clickButtonTestBtn.addEventListener('click', function() {
-    // Получаем активную вкладку
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      const activeTab = tabs[0];
-      
-      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
-      if (!activeTab.url.includes('clothes.crpt.ru')) {
-        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
-        return;
-      }
-      
-      // Отправляем запрос на нажатие кнопки
-      chrome.tabs.sendMessage(activeTab.id, {
-        type: "CLICK_ADD_BUTTON"
-      }, function(response) {
-        if (chrome.runtime.lastError) {
-          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
-        } else if (response && response.success) {
-          showStatus('Кнопка "Добавить вручную" успешно нажата', 'success');
-        } else {
-          showStatus('Кнопка "Добавить вручную" не найдена на странице', 'error');
-        }
-      });
-    });
-  });
   
   // Форматирование размера файла
   function formatFileSize(bytes) {
@@ -130,19 +96,18 @@ document.addEventListener('DOMContentLoaded', function() {
   // Создаем контейнер для отображения результатов прямо в интерфейсе
   const resultsContainer = document.createElement('div');
   resultsContainer.className = 'csv-results';
-  resultsContainer.style.display = 'none';
   document.body.appendChild(resultsContainer);
+  resultsContainer.style.display = 'none';
   
-  // Обработчик для кнопки "Обработать CSV-файл"
+  // Слушатель кнопки "Обработать CSV-файл"
   processCsvButton.addEventListener('click', function() {
     console.log('Нажата кнопка "Обработать CSV-файл"');
     
-    // Сбрасываем контейнер результатов
+    // Очищаем результаты предыдущей обработки
     resultsContainer.innerHTML = '';
     resultsContainer.style.display = 'none';
     
     // Сначала отключаем кнопку заполнения КИЗ
-    fillKizButton.disabled = true;
     fillMultipleKizButton.disabled = true;
     
     const file = csvFileInput.files[0];
@@ -151,9 +116,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // Явно показываем, что начали обработку
-    //console.clear();
-    console.log('🔍 Начинаем обработку файла:', file.name);
     showStatus('Обработка CSV-файла...', 'info');
     processCsvButton.disabled = true;
     processCsvButton.textContent = 'Обработка...';
@@ -222,7 +184,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Сохраняем КИЗы в глобальную переменную и активируем кнопки
         globalKizValues = kizValues;
-        fillKizButton.disabled = false;
         fillMultipleKizButton.disabled = false;
         
         // Отображаем результаты прямо в интерфейсе
@@ -261,53 +222,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     reader.onerror = function(error) {
-      console.error('❌ Ошибка чтения файла:', error);
+      console.error('❌ Ошибка при чтении файла:', error);
       showStatus('Ошибка чтения файла', 'error');
       processCsvButton.disabled = false;
       processCsvButton.textContent = 'Обработать CSV-файл';
     };
     
     reader.readAsText(file, 'UTF-8'); // Явно указываем кодировку UTF-8
-  });
-  
-  // Обработчик для кнопки "Заполнить поле КИЗ"
-  fillKizButton.addEventListener('click', function() {
-    console.log('Нажата кнопка "Заполнить поле КИЗ"');
-    
-    // Проверяем, есть ли данные для заполнения
-    if (globalKizValues.length === 0 || !globalKizValues[0].values || globalKizValues[0].values.length === 0) {
-      showStatus('Нет данных КИЗ для заполнения поля', 'error');
-      return;
-    }
-    
-    // Получаем первое значение КИЗ из первой строки
-    const firstKizValue = globalKizValues[0].values[0];
-    console.log('Выбрано значение КИЗ для заполнения:', firstKizValue);
-    
-    // Получаем активную вкладку
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      const activeTab = tabs[0];
-      
-      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
-      if (!activeTab.url.includes('clothes.crpt.ru')) {
-        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
-        return;
-      }
-      
-      // Отправляем запрос на заполнение поля КИЗ
-      chrome.tabs.sendMessage(activeTab.id, {
-        type: "FILL_KIZ_FIELD",
-        kizValue: firstKizValue
-      }, function(response) {
-        if (chrome.runtime.lastError) {
-          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
-        } else if (response && response.success) {
-          showStatus('Поле КИЗ успешно заполнено', 'success');
-        } else {
-          showStatus('Не удалось найти поле КИЗ на странице', 'error');
-        }
-      });
-    });
   });
   
   // Обработчик для кнопки "Заполнить все поля КИЗ из CSV"
@@ -345,40 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
           showStatus(`Успешно создано и заполнено ${response.filledCount} полей КИЗ`, 'success');
         } else {
           showStatus('Не удалось создать или заполнить поля КИЗ на странице', 'error');
-        }
-      });
-    });
-  });
-  
-  // Обработчик для кнопки "Найти последний индекс полей КИЗ"
-  findLastIndexButton.addEventListener('click', function() {
-    console.log('Нажата кнопка "Найти последний индекс полей КИЗ"');
-    
-    // Получаем активную вкладку
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      const activeTab = tabs[0];
-      
-      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
-      if (!activeTab.url.includes('clothes.crpt.ru')) {
-        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
-        return;
-      }
-      
-      // Отправляем запрос на поиск последнего индекса полей КИЗ
-      chrome.tabs.sendMessage(activeTab.id, {
-        type: "FIND_LAST_KIZ_INDEX"
-      }, function(response) {
-        if (chrome.runtime.lastError) {
-          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
-        } else if (response) {
-          if (response.lastIndex === -1) {
-            showStatus('Не найдены поля для ввода КИЗ', 'info');
-          } else {
-            showStatus(`Найден последний индекс полей КИЗ: ${response.lastIndex}`, 'info');
-          }
-          console.log('Результат поиска последнего индекса полей КИЗ:', response);
-        } else {
-          showStatus('Не удалось получить ответ от страницы', 'error');
         }
       });
     });
