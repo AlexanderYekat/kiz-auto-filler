@@ -2,16 +2,32 @@ console.log('popup.js загружен');
 
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded сработал');
+  
+  // Элементы для теста нажатия кнопки
   const clickButtonTestBtn = document.getElementById('click-button-test');
   const statusDiv = document.getElementById('status');
   
   console.log('Найдена кнопка:', clickButtonTestBtn);
+  
+  // Элементы для теста обработки CSV
+  const csvFileInput = document.getElementById('csv-file-input');
+  const csvFileInfo = document.getElementById('csv-file-info');
+  const processCsvButton = document.getElementById('process-csv-button');
 
   // Отображение статуса
   function showStatus(message, type) {
     statusDiv.textContent = message;
     statusDiv.className = type;
     statusDiv.style.display = 'block';
+    
+    // Добавляем автоматическое скрытие через 10 секунд для успешных сообщений
+    if (type === 'success') {
+      setTimeout(() => {
+        if (statusDiv.textContent === message) {
+          statusDiv.style.display = 'none';
+        }
+      }, 10000);
+    }
   }
 
   // Слушатель кнопки "Тест нажатия кнопки"
@@ -39,5 +55,203 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     });
+  });
+  
+  // Форматирование размера файла
+  function formatFileSize(bytes) {
+    if (bytes < 1024) {
+      return bytes + ' байт';
+    } else if (bytes < 1024 * 1024) {
+      return (bytes / 1024).toFixed(1) + ' КБ';
+    } else {
+      return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+    }
+  }
+  
+  // Слушатель выбора CSV файла
+  csvFileInput.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) {
+      csvFileInfo.textContent = 'Файл не выбран';
+      processCsvButton.disabled = true;
+      return;
+    }
+    
+    if (!file.name.endsWith('.csv')) {
+      showStatus('Пожалуйста, выберите файл CSV', 'error');
+      csvFileInfo.textContent = 'Неверный формат файла';
+      processCsvButton.disabled = true;
+      return;
+    }
+    
+    // Показываем информацию о файле
+    csvFileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    processCsvButton.disabled = false;
+  });
+  
+  // Функция для корректного разбора CSV-строки с учетом запятых и кавычек
+  function parseCSVLine(line) {
+    const result = [];
+    let currentValue = '';
+    let insideQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        // Проверяем, является ли это экранированной кавычкой (двойная кавычка)
+        if (i + 1 < line.length && line[i + 1] === '"' && insideQuotes) {
+          currentValue += '"'; // Добавляем одну кавычку для экранированной двойной кавычки
+          i++; // Пропускаем следующую кавычку
+        } else {
+          insideQuotes = !insideQuotes; // Переключаем флаг нахождения внутри кавычек
+        }
+      } else if (char === ',' && !insideQuotes) {
+        // Запятая вне кавычек означает конец значения
+        result.push(currentValue);
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    
+    // Добавляем последнее значение
+    result.push(currentValue);
+    
+    return result;
+  }
+  
+  // Создаем контейнер для отображения результатов прямо в интерфейсе
+  const resultsContainer = document.createElement('div');
+  resultsContainer.className = 'csv-results';
+  resultsContainer.style.display = 'none';
+  document.body.appendChild(resultsContainer);
+  
+  // Обработчик для кнопки "Обработать CSV-файл"
+  processCsvButton.addEventListener('click', function() {
+    console.log('Нажата кнопка "Обработать CSV-файл"');
+    
+    // Сбрасываем контейнер результатов
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.display = 'none';
+    
+    const file = csvFileInput.files[0];
+    if (!file) {
+      showStatus('Файл не выбран', 'error');
+      return;
+    }
+    
+    // Явно показываем, что начали обработку
+    //console.clear();
+    console.log('🔍 Начинаем обработку файла:', file.name);
+    showStatus('Обработка CSV-файла...', 'info');
+    processCsvButton.disabled = true;
+    processCsvButton.textContent = 'Обработка...';
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      console.log('📄 Файл успешно прочитан');
+      const contents = e.target.result;
+      
+      // Отладочный вывод начала содержимого
+      console.log('Первые 50 символов файла:', contents.substring(0, 50));
+      
+      const lines = contents.split(/\r?\n/);
+      console.log('📊 CSV файл прочитан, всего строк:', lines.length);
+      
+      if (lines.length === 0) {
+        console.log('⚠️ Файл не содержит строк');
+        showStatus('Файл пуст или имеет неверный формат', 'error');
+        processCsvButton.disabled = false;
+        processCsvButton.textContent = 'Обработать CSV-файл';
+        return;
+      }
+      
+      // Отладочный вывод первой строки
+      console.log('Первая строка CSV:', lines[0]);
+      
+      const kizValues = [];
+      
+      lines.forEach((line, index) => {
+        if (!line.trim()) {
+          console.log(`Строка ${index + 1}: пустая, пропускаем`);
+          return; // Пропускаем пустые строки
+        }
+        
+        try {
+          const values = parseCSVLine(line);
+          
+          console.log(`Строка ${index + 1}: разбор завершен, найдено ${values.length} значений`);
+          
+          // Пропускаем первые два значения (1 и КИЗ) и обрабатываем только остальные
+          if (values.length > 2) {
+            // Выводим только значения КИЗ, начиная с третьего элемента (индекс 2)
+            console.log(`Строка ${index + 1}, значения КИЗ:`, values.slice(2));
+            
+            // Сохраняем значения для возможного дальнейшего использования
+            kizValues.push({
+              values: values.slice(2)
+            });
+          } else {
+            console.log(`⚠️ Строка ${index + 1}: недостаточно значений (${values.length}), ожидалось > 2`);
+          }
+        } catch (error) {
+          console.error(`❌ Ошибка при обработке строки ${index + 1}:`, error);
+        }
+      });
+      
+      console.log('✅ Всего обработано записей с КИЗ:', kizValues.length);
+      
+      // Восстанавливаем кнопку
+      processCsvButton.disabled = false;
+      processCsvButton.textContent = 'Обработать CSV-файл';
+      
+      if (kizValues.length > 0) {
+        showStatus(`Успешно обработано ${kizValues.length} записей из CSV-файла`, 'success');
+        
+        // Отображаем результаты прямо в интерфейсе
+        resultsContainer.style.display = 'block';
+        const header = document.createElement('h3');
+        header.textContent = 'Результаты обработки CSV:';
+        resultsContainer.appendChild(header);
+        
+        const info = document.createElement('p');
+        info.textContent = `Обработано ${kizValues.length} строк, извлечено ${kizValues.reduce((acc, row) => acc + row.values.length, 0)} значений КИЗ.`;
+        resultsContainer.appendChild(info);
+        
+        // Показываем первые 5 строк с КИЗ в качестве примера
+        if (kizValues.length > 0) {
+          const exampleHeader = document.createElement('p');
+          exampleHeader.innerHTML = '<strong>Примеры КИЗ:</strong>';
+          resultsContainer.appendChild(exampleHeader);
+          
+          const exampleList = document.createElement('ul');
+          const limit = Math.min(5, kizValues.length);
+          
+          for (let i = 0; i < limit; i++) {
+            const kizRow = kizValues[i];
+            if (kizRow.values.length > 0) {
+              const item = document.createElement('li');
+              item.textContent = `Строка ${i + 1}: ${kizRow.values[0]}${kizRow.values.length > 1 ? ` (+ ещё ${kizRow.values.length - 1})` : ''}`;
+              exampleList.appendChild(item);
+            }
+          }
+          
+          resultsContainer.appendChild(exampleList);
+        }
+      } else {
+        showStatus('Не найдено записей с КИЗ в файле', 'error');
+      }
+    };
+    
+    reader.onerror = function(error) {
+      console.error('❌ Ошибка чтения файла:', error);
+      showStatus('Ошибка чтения файла', 'error');
+      processCsvButton.disabled = false;
+      processCsvButton.textContent = 'Обработать CSV-файл';
+    };
+    
+    reader.readAsText(file, 'UTF-8'); // Явно указываем кодировку UTF-8
   });
 });

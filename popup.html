@@ -44,6 +44,37 @@
     button:hover {
       background-color: #f57c00;
     }
+    .secondary-btn {
+      background-color: #ff8f00;
+      margin-top: 10px;
+    }
+    .secondary-btn:hover {
+      background-color: #f57c00;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #eee;
+    }
+    .file-section {
+      margin-bottom: 10px;
+    }
+    #csv-file-info {
+      margin-top: 5px;
+      font-size: 12px;
+      color: #666;
+    }
+    .note {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .note ol {
+      margin: 5px 0 0 20px;
+      padding: 0;
+    }
   </style>
 </head>
 <body>
@@ -52,6 +83,27 @@
   <button id="click-button-test">Нажать кнопку "Добавить вручную"</button>
   
   <div id="status" style="display: none;"></div>
+  
+  <hr style="margin: 15px 0;">
+  
+  <h1>Тест чтения CSV-файла</h1>
+  
+  <div class="file-section">
+    <label for="csv-file-input">Выберите CSV-файл с КИЗ:</label>
+    <input type="file" id="csv-file-input" accept=".csv">
+    <div id="csv-file-info">Файл не выбран</div>
+  </div>
+  
+  <button id="process-csv-button" class="secondary-btn" disabled>Обработать CSV-файл</button>
+  
+  <div class="note">
+    <strong>Примечание:</strong> Для просмотра логов откройте консоль расширения:
+    <ol>
+      <li>Щелкните правой кнопкой мыши на этом окне</li>
+      <li>Выберите "Проверить"</li>
+      <li>Перейдите на вкладку "Консоль"</li>
+    </ol>
+  </div>
   
   <script src="popup.js"></script>
 </body>
