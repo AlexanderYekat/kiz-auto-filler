@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "УПД: Убираем хвост для сканирования марок",
-  "version": "2025.04.02.01",
-  "description": "Убираем хвост для сканирования марок в УПД на сайте clothes.crpt.ru (честного знакак)",
+  "name": "УПД: Тест нажатия кнопки",
+  "version": "2025.04.03.04",
+  "description": "Тест функции нажатия кнопки на сайте clothes.crpt.ru",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "https://clothes.crpt.ru/*"

@@ -1,10 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>УПД: Убираем хвост</title>
+  <meta charset="utf-8">
+  <title>РўРµСЃС‚ РЅР°Р¶Р°С‚РёСЏ РєРЅРѕРїРєРё</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    #status {
+      margin-top: 10px;
+      padding: 5px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .success {
+      color: green;
+      background-color: #e8f5e9;
+    }
+    .error {
+      color: red;
+      background-color: #ffebee;
+    }
+    .info {
+      color: #0d47a1;
+      background-color: #e3f2fd;
+    }
+    button {
+      background-color: #ff8f00;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #f57c00;
+    }
+  </style>
 </head>
 <body>
-  <h1>УПД: Убираем хвост для сканирования марок</h1>
-  <p>Расширение активно на странице clothes.crpt.ru</p>
+  <h1>РўРµСЃС‚ РЅР°Р¶Р°С‚РёСЏ РєРЅРѕРїРєРё "Р”РѕР±Р°РІРёС‚СЊ РІСЂСѓС‡РЅСѓСЋ"</h1>
+  
+  <button id="click-button-test">РќР°Р¶Р°С‚СЊ РєРЅРѕРїРєСѓ "Р”РѕР±Р°РІРёС‚СЊ РІСЂСѓС‡РЅСѓСЋ"</button>
+  
+  <div id="status" style="display: none;"></div>
+  
+  <script src="popup.js"></script>
 </body>
 </html>
