@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const csvFileInfo = document.getElementById('csv-file-info');
   const processCsvButton = document.getElementById('process-csv-button');
   const fillKizButton = document.getElementById('fill-kiz-button');
+  const fillMultipleKizButton = document.getElementById('fill-multiple-kiz-button');
   const findLastIndexButton = document.getElementById('find-last-index-button');
 
   // Глобальная переменная для хранения данных КИЗ
@@ -142,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Сначала отключаем кнопку заполнения КИЗ
     fillKizButton.disabled = true;
+    fillMultipleKizButton.disabled = true;
     
     const file = csvFileInput.files[0];
     if (!file) {
@@ -218,9 +220,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (kizValues.length > 0) {
         showStatus(`Успешно обработано ${kizValues.length} записей из CSV-файла`, 'success');
         
-        // Сохраняем КИЗы в глобальную переменную и активируем кнопку
+        // Сохраняем КИЗы в глобальную переменную и активируем кнопки
         globalKizValues = kizValues;
         fillKizButton.disabled = false;
+        fillMultipleKizButton.disabled = false;
         
         // Отображаем результаты прямо в интерфейсе
         resultsContainer.style.display = 'block';
@@ -302,6 +305,46 @@ document.addEventListener('DOMContentLoaded', function() {
           showStatus('Поле КИЗ успешно заполнено', 'success');
         } else {
           showStatus('Не удалось найти поле КИЗ на странице', 'error');
+        }
+      });
+    });
+  });
+  
+  // Обработчик для кнопки "Заполнить все поля КИЗ из CSV"
+  fillMultipleKizButton.addEventListener('click', function() {
+    console.log('Нажата кнопка "Заполнить все поля КИЗ из CSV"');
+    
+    // Проверяем, есть ли данные для заполнения
+    if (globalKizValues.length === 0 || !globalKizValues[0].values || globalKizValues[0].values.length === 0) {
+      showStatus('Нет данных КИЗ для заполнения полей', 'error');
+      return;
+    }
+    
+    // Получаем все значения КИЗ из первой строки
+    const kizValues = globalKizValues[0].values;
+    console.log('Выбрано значений КИЗ для заполнения:', kizValues.length);
+    
+    // Получаем активную вкладку
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      const activeTab = tabs[0];
+      
+      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
+      if (!activeTab.url.includes('clothes.crpt.ru')) {
+        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
+        return;
+      }
+      
+      // Отправляем запрос на создание и заполнение полей КИЗ
+      chrome.tabs.sendMessage(activeTab.id, {
+        type: "CREATE_AND_FILL_KIZ_FIELDS",
+        kizValues: kizValues
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
+        } else if (response && response.success) {
+          showStatus(`Успешно создано и заполнено ${response.filledCount} полей КИЗ`, 'success');
+        } else {
+          showStatus('Не удалось создать или заполнить поля КИЗ на странице', 'error');
         }
       });
     });

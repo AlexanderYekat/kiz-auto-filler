@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "УПД: Тест нажатия кнопки",
-  "version": "2025.04.03.11",
+  "version": "2025.04.03.12",
   "description": "Тест функций нажатия кнопки, обработки CSV файлов, заполнения поля КИЗ и поиска индекса полей на сайте clothes.crpt.ru",
   "permissions": [
     "activeTab",
