@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.10
+// @version      2025.04.03.11
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.10 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.11 (тест кнопки) активировано');
 
 // Поиск кнопки "Добавить вручную"
 function findAddButton() {
@@ -84,6 +84,22 @@ function findAndFillKizField(kizValue) {
   }
 }
 
+// Поиск последнего индекса полей КИЗ
+function findLastKizFieldIndex() {
+  console.log('Ищем все поля для ввода КИЗ и определяем последний индекс...');
+  
+  // Используем CSS-селектор для поиска всех полей ввода с нужным шаблоном атрибута name
+  const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]');
+  console.log(`Найдено ${kizInputs.length} полей ввода КИЗ`);
+  
+  if (kizInputs.length === 0) {
+    console.log('Поля для ввода КИЗ не найдены');
+    return -1;
+  }
+  
+  return kizInputs.length - 1;
+}
+
 // Обработчик сообщений от popup
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   console.log('Получено сообщение от popup:', message);
@@ -107,6 +123,15 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     
     const success = findAndFillKizField(message.kizValue);
     sendResponse({ success: success });
+    
+    return true; // Показываем, что собираемся отвечать асинхронно
+  }
+  
+  if (message.type === "FIND_LAST_KIZ_INDEX") {
+    console.log('Обрабатываем сообщение FIND_LAST_KIZ_INDEX');
+    
+    const lastIndex = findLastKizFieldIndex();
+    sendResponse({ lastIndex: lastIndex });
     
     return true; // Показываем, что собираемся отвечать асинхронно
   }

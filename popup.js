@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const csvFileInfo = document.getElementById('csv-file-info');
   const processCsvButton = document.getElementById('process-csv-button');
   const fillKizButton = document.getElementById('fill-kiz-button');
+  const findLastIndexButton = document.getElementById('find-last-index-button');
 
   // Глобальная переменная для хранения данных КИЗ
   let globalKizValues = [];
@@ -301,6 +302,40 @@ document.addEventListener('DOMContentLoaded', function() {
           showStatus('Поле КИЗ успешно заполнено', 'success');
         } else {
           showStatus('Не удалось найти поле КИЗ на странице', 'error');
+        }
+      });
+    });
+  });
+  
+  // Обработчик для кнопки "Найти последний индекс полей КИЗ"
+  findLastIndexButton.addEventListener('click', function() {
+    console.log('Нажата кнопка "Найти последний индекс полей КИЗ"');
+    
+    // Получаем активную вкладку
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      const activeTab = tabs[0];
+      
+      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
+      if (!activeTab.url.includes('clothes.crpt.ru')) {
+        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
+        return;
+      }
+      
+      // Отправляем запрос на поиск последнего индекса полей КИЗ
+      chrome.tabs.sendMessage(activeTab.id, {
+        type: "FIND_LAST_KIZ_INDEX"
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
+        } else if (response) {
+          if (response.lastIndex === -1) {
+            showStatus('Не найдены поля для ввода КИЗ', 'info');
+          } else {
+            showStatus(`Найден последний индекс полей КИЗ: ${response.lastIndex}`, 'info');
+          }
+          console.log('Результат поиска последнего индекса полей КИЗ:', response);
+        } else {
+          showStatus('Не удалось получить ответ от страницы', 'error');
         }
       });
     });
