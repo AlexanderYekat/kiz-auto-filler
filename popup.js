@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const csvFileInput = document.getElementById('csv-file-input');
   const csvFileInfo = document.getElementById('csv-file-info');
   const processCsvButton = document.getElementById('process-csv-button');
+  const fillKizButton = document.getElementById('fill-kiz-button');
+
+  // Глобальная переменная для хранения данных КИЗ
+  let globalKizValues = [];
 
   // Отображение статуса
   function showStatus(message, type) {
@@ -135,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
     resultsContainer.innerHTML = '';
     resultsContainer.style.display = 'none';
     
+    // Сначала отключаем кнопку заполнения КИЗ
+    fillKizButton.disabled = true;
+    
     const file = csvFileInput.files[0];
     if (!file) {
       showStatus('Файл не выбран', 'error');
@@ -210,6 +217,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (kizValues.length > 0) {
         showStatus(`Успешно обработано ${kizValues.length} записей из CSV-файла`, 'success');
         
+        // Сохраняем КИЗы в глобальную переменную и активируем кнопку
+        globalKizValues = kizValues;
+        fillKizButton.disabled = false;
+        
         // Отображаем результаты прямо в интерфейсе
         resultsContainer.style.display = 'block';
         const header = document.createElement('h3');
@@ -253,5 +264,45 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     reader.readAsText(file, 'UTF-8'); // Явно указываем кодировку UTF-8
+  });
+  
+  // Обработчик для кнопки "Заполнить поле КИЗ"
+  fillKizButton.addEventListener('click', function() {
+    console.log('Нажата кнопка "Заполнить поле КИЗ"');
+    
+    // Проверяем, есть ли данные для заполнения
+    if (globalKizValues.length === 0 || !globalKizValues[0].values || globalKizValues[0].values.length === 0) {
+      showStatus('Нет данных КИЗ для заполнения поля', 'error');
+      return;
+    }
+    
+    // Получаем первое значение КИЗ из первой строки
+    const firstKizValue = globalKizValues[0].values[0];
+    console.log('Выбрано значение КИЗ для заполнения:', firstKizValue);
+    
+    // Получаем активную вкладку
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      const activeTab = tabs[0];
+      
+      // Проверяем, соответствует ли URL сайту clothes.crpt.ru
+      if (!activeTab.url.includes('clothes.crpt.ru')) {
+        showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
+        return;
+      }
+      
+      // Отправляем запрос на заполнение поля КИЗ
+      chrome.tabs.sendMessage(activeTab.id, {
+        type: "FILL_KIZ_FIELD",
+        kizValue: firstKizValue
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
+        } else if (response && response.success) {
+          showStatus('Поле КИЗ успешно заполнено', 'success');
+        } else {
+          showStatus('Не удалось найти поле КИЗ на странице', 'error');
+        }
+      });
+    });
   });
 });

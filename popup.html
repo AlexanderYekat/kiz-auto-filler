@@ -47,9 +47,22 @@
     .secondary-btn {
       background-color: #ff8f00;
       margin-top: 10px;
+      width: 100%;
     }
     .secondary-btn:hover {
       background-color: #f57c00;
+    }
+    .action-btn {
+      background-color: #4caf50;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .action-btn:hover {
+      background-color: #388e3c;
+    }
+    .action-btn:disabled {
+      background-color: #a5d6a7;
+      cursor: not-allowed;
     }
     hr {
       border: none;
@@ -95,6 +108,8 @@
   </div>
   
   <button id="process-csv-button" class="secondary-btn" disabled>Обработать CSV-файл</button>
+  
+  <button id="fill-kiz-button" class="action-btn" disabled>Заполнить поле КИЗ</button>
   
   <div class="note">
     <strong>Примечание:</strong> Для просмотра логов откройте консоль расширения:

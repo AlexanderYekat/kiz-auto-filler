@@ -1,75 +1,113 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.09
+// @version      2025.04.03.10
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.09 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.10 (тест кнопки) активировано');
 
 // Поиск кнопки "Добавить вручную"
 function findAddButton() {
-  // Находим все родительские div с классом MuiStack-root
+  console.log('Ищем кнопку "Добавить вручную"...');
+  
+  // Получаем все div с классом MuiStack-root
   const stackDivs = document.querySelectorAll('div.MuiStack-root');
   console.log(`Найдено ${stackDivs.length} div с классом MuiStack-root`);
   
-  // Ищем среди них div с классом css-1ktmlak, содержащий кнопку "Добавить вручную"
+  // Проходим по каждому div и ищем в нем нужную кнопку
   for (const div of stackDivs) {
     if (div.className.includes('css-1ktmlak')) {
+      console.log('Найден div с классом css-1ktmlak:', div);
+      
       const button = div.querySelector('button');
       if (button && button.textContent.trim() === 'Добавить вручную') {
-        console.log('Найдена кнопка в div.MuiStack-root.css-1ktmlak:', button);
+        console.log('Найдена кнопка "Добавить вручную":', button);
         return button;
       }
     }
   }
-
-  // Если не нашли кнопку в указанном родителе, ищем все кнопки "Добавить вручную"
-  console.log('Не найдена кнопка в целевом div, ищем все кнопки "Добавить вручную"');
-  const allButtons = document.querySelectorAll('button');
-  const targetButtons = Array.from(allButtons).filter(
-    button => button.textContent.trim() === 'Добавить вручную'
-  );
   
-  console.log(`Найдено ${targetButtons.length} кнопок "Добавить вручную"`);
-  
-  // Выводим информацию о каждой найденной кнопке
-  targetButtons.forEach((btn, index) => {
-    console.log(`Кнопка "Добавить вручную" #${index}:`, {
-      parentClass: btn.parentElement ? btn.parentElement.className : 'нет'
-    });
-  });
-  
-  // Возвращаем первую найденную кнопку, если есть
-  if (targetButtons.length > 0) {
-    console.log('Возвращаем первую найденную кнопку:', targetButtons[0]);
-    return targetButtons[0];
-  }
-  
-  console.log('Кнопки "Добавить вручную" не найдены');
+  console.log('Кнопка "Добавить вручную" не найдена');
   return null;
 }
 
-// Функция для нажатия на кнопку "Добавить вручную"
-function clickAddButton() {
-  const button = findAddButton();
+// Поиск и заполнение поля для КИЗ
+function findAndFillKizField(kizValue) {
+  console.log('Ищем поле для ввода КИЗ...');
   
-  if (button) {
-    console.log('Кнопка "Добавить вручную" найдена, нажимаем...');
-    button.click();
+  // Ищем поле ввода по имени (атрибут name)
+  const kizInput = document.querySelector('input[name="product.extra_inf.good_identification_numbers[0].id"]');
+  
+  if (kizInput) {
+    console.log('Найдено поле для ввода КИЗ:', kizInput);
+    
+    // Устанавливаем значение
+    kizInput.value = kizValue;
+    
+    // Создаем событие ввода для активации валидации и других обработчиков
+    const inputEvent = new Event('input', { bubbles: true });
+    kizInput.dispatchEvent(inputEvent);
+    
+    // Создаем событие изменения для активации валидации и других обработчиков
+    const changeEvent = new Event('change', { bubbles: true });
+    kizInput.dispatchEvent(changeEvent);
+    
+    console.log('Поле КИЗ успешно заполнено значением:', kizValue);
     return true;
   } else {
-    console.log('Кнопка "Добавить вручную" не найдена');
+    console.log('Поле для ввода КИЗ не найдено');
+    
+    // Попробуем найти по более общему селектору (по классу и типу)
+    const inputs = document.querySelectorAll('input.MuiInputBase-input.MuiInput-input');
+    console.log(`Найдено ${inputs.length} полей ввода с классом MuiInputBase-input`);
+    
+    for (const input of inputs) {
+      if (input.id && input.id.startsWith('mui-') && input.required) {
+        console.log('Найдено поле ввода, похожее на поле КИЗ:', input);
+        
+        // Устанавливаем значение
+        input.value = kizValue;
+        
+        // Создаем события ввода и изменения
+        const inputEvent = new Event('input', { bubbles: true });
+        input.dispatchEvent(inputEvent);
+        
+        const changeEvent = new Event('change', { bubbles: true });
+        input.dispatchEvent(changeEvent);
+        
+        console.log('Альтернативное поле успешно заполнено значением:', kizValue);
+        return true;
+      }
+    }
+    
     return false;
   }
 }
 
-// Обработчик сообщений от popup.js
+// Обработчик сообщений от popup
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+  console.log('Получено сообщение от popup:', message);
+  
   if (message.type === "CLICK_ADD_BUTTON") {
-    console.log('Получен запрос на нажатие кнопки "Добавить вручную"');
-    const success = clickAddButton();
-    sendResponse({ success: success });
-    return true;
+    console.log('Обрабатываем сообщение CLICK_ADD_BUTTON');
+    
+    const button = findAddButton();
+    if (button) {
+      button.click();
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false });
+    }
+    
+    return true; // Показываем, что собираемся отвечать асинхронно
   }
-  return false;
+  
+  if (message.type === "FILL_KIZ_FIELD") {
+    console.log('Обрабатываем сообщение FILL_KIZ_FIELD с значением:', message.kizValue);
+    
+    const success = findAndFillKizField(message.kizValue);
+    sendResponse({ success: success });
+    
+    return true; // Показываем, что собираемся отвечать асинхронно
+  }
 });
