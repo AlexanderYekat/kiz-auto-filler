@@ -9,9 +9,49 @@ document.addEventListener('DOMContentLoaded', function() {
   const processCsvButton = document.getElementById('process-csv-button');
   const fillMultipleKizButton = document.getElementById('fill-multiple-kiz-button');
   const statusDiv = document.getElementById('status');
+  const progressContainer = document.getElementById('progress-container');
+  const progressDetails = document.getElementById('progress-details');
 
   // Глобальная переменная для хранения данных КИЗ
   let globalKizValues = [];
+
+  // Слушатель сообщений от content.js
+  chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+    console.log('Получено сообщение в popup:', message);
+    
+    // Отображаем сообщения о прогрессе
+    if (message.type === "PROGRESS_UPDATE") {
+      addProgressMessage(message.message);
+    }
+    
+    return true;
+  });
+
+  // Функция для добавления сообщения о прогрессе
+  function addProgressMessage(message) {
+    const messageElement = document.createElement('p');
+    messageElement.textContent = message;
+    messageElement.style.margin = '5px 0';
+    messageElement.style.borderBottom = '1px dashed #ddd';
+    messageElement.style.paddingBottom = '5px';
+    
+    progressDetails.appendChild(messageElement);
+    
+    // Прокручиваем до последнего сообщения
+    progressDetails.scrollTop = progressDetails.scrollHeight;
+    
+    // Убеждаемся, что контейнер прогресса видим
+    progressContainer.style.display = 'block';
+    
+    // Также выводим в консоль для отладки
+    console.log(message);
+  }
+  
+  // Очистка сообщений о прогрессе
+  function clearProgressMessages() {
+    progressDetails.innerHTML = '';
+    progressContainer.style.display = 'none';
+  }
 
   // Отображение статуса
   function showStatus(message, type) {
@@ -107,6 +147,9 @@ document.addEventListener('DOMContentLoaded', function() {
     resultsContainer.innerHTML = '';
     resultsContainer.style.display = 'none';
     
+    // Очищаем сообщения о прогрессе
+    clearProgressMessages();
+    
     // Сначала отключаем кнопку заполнения КИЗ
     fillMultipleKizButton.disabled = true;
     
@@ -131,9 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const lines = contents.split(/\r?\n/);
       console.log('📊 CSV файл прочитан, всего строк:', lines.length);
+      addProgressMessage(`CSV файл прочитан, всего строк: ${lines.length}`);
       
       if (lines.length === 0) {
         console.log('⚠️ Файл не содержит строк');
+        addProgressMessage('⚠️ Файл не содержит строк');
         showStatus('Файл пуст или имеет неверный формат', 'error');
         processCsvButton.disabled = false;
         processCsvButton.textContent = 'Обработать CSV-файл';
@@ -142,6 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Отладочный вывод первой строки
       console.log('Первая строка CSV:', lines[0]);
+      addProgressMessage(`Начало обработки строк CSV...`);
       
       const kizValues = [];
       
@@ -165,6 +211,11 @@ document.addEventListener('DOMContentLoaded', function() {
             kizValues.push({
               values: values.slice(2)
             });
+            
+            // Показываем пользователю каждую 10-ю строку или последнюю
+            if (index % 10 === 0 || index === lines.length - 1) {
+              addProgressMessage(`Обработано строк: ${index + 1} из ${lines.length}`);
+            }
           } else {
             console.log(`⚠️ Строка ${index + 1}: недостаточно значений (${values.length}), ожидалось > 2`);
           }
@@ -174,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       console.log('✅ Всего обработано записей с КИЗ:', kizValues.length);
+      addProgressMessage(`✅ Всего обработано записей с КИЗ: ${kizValues.length}`);
       
       // Восстанавливаем кнопку
       processCsvButton.disabled = false;
@@ -234,16 +286,19 @@ document.addEventListener('DOMContentLoaded', function() {
   // Обработчик для кнопки "Заполнить все поля КИЗ из CSV"
   fillMultipleKizButton.addEventListener('click', function() {
     console.log('Нажата кнопка "Заполнить все поля КИЗ из CSV"');
+    addProgressMessage('Начинаем заполнение полей КИЗ...');
     
     // Проверяем, есть ли данные для заполнения
     if (globalKizValues.length === 0 || !globalKizValues[0].values || globalKizValues[0].values.length === 0) {
       showStatus('Нет данных КИЗ для заполнения полей', 'error');
+      addProgressMessage('⚠️ Нет данных КИЗ для заполнения');
       return;
     }
     
     // Получаем все значения КИЗ из первой строки
     const kizValues = globalKizValues[0].values;
     console.log('Выбрано значений КИЗ для заполнения:', kizValues.length);
+    addProgressMessage(`Найдено ${kizValues.length} значений КИЗ для заполнения`);
     
     // Получаем активную вкладку
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
@@ -252,8 +307,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // Проверяем, соответствует ли URL сайту clothes.crpt.ru
       if (!activeTab.url.includes('clothes.crpt.ru')) {
         showStatus('Это расширение работает только на сайте clothes.crpt.ru', 'error');
+        addProgressMessage('⚠️ Ошибка: расширение работает только на сайте clothes.crpt.ru');
         return;
       }
+      
+      addProgressMessage('Отправка данных на страницу...');
       
       // Отправляем запрос на создание и заполнение полей КИЗ
       chrome.tabs.sendMessage(activeTab.id, {
@@ -262,10 +320,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }, function(response) {
         if (chrome.runtime.lastError) {
           showStatus('Ошибка подключения к странице. Обновите страницу и попробуйте снова.', 'error');
+          addProgressMessage('⚠️ Ошибка подключения к странице');
         } else if (response && response.success) {
           showStatus(`Успешно создано и заполнено ${response.filledCount} полей КИЗ`, 'success');
+          addProgressMessage(`✅ Успешно создано и заполнено ${response.filledCount} полей КИЗ`);
         } else {
           showStatus('Не удалось создать или заполнить поля КИЗ на странице', 'error');
+          addProgressMessage('⚠️ Не удалось создать или заполнить поля КИЗ');
         }
       });
     });

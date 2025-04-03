@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.12
+// @version      2025.04.03.13
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.12 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.13 (тест кнопки) активировано');
 
 // Поиск кнопки "Добавить вручную"
 function findAddButton() {
@@ -112,7 +112,10 @@ function createAndFillKizFields(kizValues) {
   const addButton = findAddButton();
   if (!addButton) {
     console.error('Не удалось найти кнопку "Добавить вручную"');
-    return Promise.resolve({ success: false });
+    return Promise.resolve({ 
+      success: false,
+      message: 'Не удалось найти кнопку "Добавить вручную"'
+    });
   }
   
   // Определяем, сколько раз нужно нажать кнопку
@@ -121,17 +124,39 @@ function createAndFillKizFields(kizValues) {
   const fieldsToCreate = startIndex === -1 ? kizValues.length : Math.max(0, kizValues.length - (startIndex + 1));
   console.log(`Необходимо создать ${fieldsToCreate} новых полей КИЗ`);
   
-  // Нажимаем кнопку необходимое количество раз
+  // Отправляем сообщение о начале создания полей
+  chrome.runtime.sendMessage({
+    type: "PROGRESS_UPDATE",
+    message: `Найдено ${startIndex + 1 > 0 ? startIndex + 1 : 0} существующих полей. Создаю ${fieldsToCreate} новых полей КИЗ...`
+  });
+  
+  // Для больших объемов используем пакетную обработку
+  const BATCH_SIZE = 20; // Создаем поля пакетами по 20 штук
+  const batches = Math.ceil(fieldsToCreate / BATCH_SIZE);
+  
+  let processedFields = 0;
   let clickPromise = Promise.resolve();
   
-  for (let i = 0; i < fieldsToCreate; i++) {
+  // Обработка по пакетам
+  for (let batch = 0; batch < batches; batch++) {
     clickPromise = clickPromise.then(() => {
       return new Promise(resolve => {
-        console.log(`Нажимаем кнопку "Добавить вручную" (${i + 1}/${fieldsToCreate})`);
-        addButton.click();
+        // Определяем размер текущего пакета
+        const currentBatchSize = Math.min(BATCH_SIZE, fieldsToCreate - processedFields);
         
-        // Добавляем небольшую задержку для стабильности
-        setTimeout(resolve, 300); // 300 мс между нажатиями
+        // Информируем о начале обработки пакета
+        chrome.runtime.sendMessage({
+          type: "PROGRESS_UPDATE",
+          message: `Обработка пакета ${batch + 1} из ${batches} (поля ${processedFields + 1}-${processedFields + currentBatchSize})...`
+        });
+        
+        // Создаем поля текущего пакета
+        createFieldsBatch(addButton, currentBatchSize, processedFields, fieldsToCreate).then(() => {
+          processedFields += currentBatchSize;
+          
+          // Даем DOM время на обновление между пакетами (увеличенная пауза)
+          setTimeout(resolve, 1000); // 1 секунда между пакетами
+        });
       });
     });
   }
@@ -140,6 +165,12 @@ function createAndFillKizFields(kizValues) {
   return clickPromise.then(() => {
     // Возвращаем Promise, который разрешится после заполнения полей
     return new Promise(resolve => {
+      // Отправляем сообщение о начале заполнения полей
+      chrome.runtime.sendMessage({
+        type: "PROGRESS_UPDATE",
+        message: `Поля созданы. Начинаем заполнение данными...`
+      });
+      
       // Даем дополнительное время на отрисовку полей
       setTimeout(() => {
         // Заполняем поля значениями КИЗ
@@ -149,11 +180,63 @@ function createAndFillKizFields(kizValues) {
         resolve({
           success: true,
           fieldsCreated: fieldsToCreate,
-          filledCount: filledCount
+          filledCount: filledCount,
+          message: `Заполнено ${filledCount} полей КИЗ`
         });
-      }, 500);
+      }, 1500); // Увеличиваем ожидание до 1.5 секунд
     });
   });
+}
+
+// Функция для создания пакета полей
+function createFieldsBatch(addButton, batchSize, processedFields, totalFields) {
+  let batchPromise = Promise.resolve();
+  
+  for (let i = 0; i < batchSize; i++) {
+    const currentFieldIndex = processedFields + i;
+    
+    batchPromise = batchPromise.then(() => {
+      return new Promise(resolve => {
+        console.log(`Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`);
+        
+        // Отправляем обновление о прогрессе каждые 5 нажатий или на последнем
+        if (i % 5 === 0 || i === batchSize - 1) {
+          chrome.runtime.sendMessage({
+            type: "PROGRESS_UPDATE",
+            message: `Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`
+          });
+        }
+        
+        addButton.click();
+        
+        // Проверяем, увеличилось ли количество полей 
+        let checkInterval;
+        const startTime = Date.now();
+        const timeout = 3000; // 3 секунды максимальное ожидание
+        const initialFieldCount = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]').length;
+        
+        checkInterval = setInterval(() => {
+          // Если прошло больше timeout, прекращаем ожидание
+          if (Date.now() - startTime > timeout) {
+            clearInterval(checkInterval);
+            console.log(`Превышено время ожидания для поля ${currentFieldIndex + 1}, продолжаем...`);
+            resolve();
+            return;
+          }
+          
+          // Проверяем, изменилось ли количество полей
+          const currentFieldCount = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]').length;
+          if (currentFieldCount > initialFieldCount) {
+            clearInterval(checkInterval);
+            console.log(`Поле ${currentFieldIndex + 1} успешно создано`);
+            resolve();
+          }
+        }, 100); // Проверяем каждые 100 мс
+      });
+    });
+  }
+  
+  return batchPromise;
 }
 
 // Заполнение всех полей КИЗ
@@ -164,8 +247,17 @@ function fillAllKizFields(kizValues) {
   const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]');
   console.log(`Найдено ${kizInputs.length} полей для ввода КИЗ`);
   
+  chrome.runtime.sendMessage({
+    type: "PROGRESS_UPDATE",
+    message: `Найдено ${kizInputs.length} полей для ввода КИЗ`
+  });
+  
   if (kizInputs.length === 0) {
     console.log('Не найдены поля для ввода КИЗ');
+    chrome.runtime.sendMessage({
+      type: "PROGRESS_UPDATE",
+      message: `Ошибка: не найдены поля для ввода КИЗ`
+    });
     return 0;
   }
   
@@ -177,6 +269,14 @@ function fillAllKizFields(kizValues) {
     const kizValue = kizValues[i];
     
     console.log(`Заполняем поле ${i} значением: ${kizValue}`);
+    
+    // Отправляем обновление о прогрессе каждые 10 полей или на последнем
+    if (i % 10 === 0 || i === Math.min(kizInputs.length, kizValues.length) - 1) {
+      chrome.runtime.sendMessage({
+        type: "PROGRESS_UPDATE",
+        message: `Заполнение поля ${i + 1} из ${Math.min(kizInputs.length, kizValues.length)}`
+      });
+    }
     
     // Устанавливаем значение
     input.value = kizValue;
@@ -192,6 +292,11 @@ function fillAllKizFields(kizValues) {
   }
   
   console.log(`Всего заполнено ${filledCount} полей КИЗ`);
+  chrome.runtime.sendMessage({
+    type: "PROGRESS_UPDATE",
+    message: `Всего заполнено ${filledCount} полей КИЗ`
+  });
+  
   return filledCount;
 }
 
