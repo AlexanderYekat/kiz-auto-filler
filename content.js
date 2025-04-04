@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.13
+// @version      2025.04.03.14
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.13 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.14 (тест кнопки) активировано');
 
 // Поиск кнопки "Добавить вручную"
 function findAddButton() {
@@ -190,53 +190,26 @@ function createAndFillKizFields(kizValues) {
 
 // Функция для создания пакета полей
 function createFieldsBatch(addButton, batchSize, processedFields, totalFields) {
-  let batchPromise = Promise.resolve();
-  
-  for (let i = 0; i < batchSize; i++) {
-    const currentFieldIndex = processedFields + i;
+  return new Promise(resolve => {
+    // Создаем все поля
+    for (let i = 0; i < batchSize; i++) {
+      const currentFieldIndex = processedFields + i;
+      console.log(`Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`);
+      
+      // Отправляем обновление о прогрессе каждые 5 нажатий или на последнем
+      if (i % 5 === 0 || i === batchSize - 1) {
+        chrome.runtime.sendMessage({
+          type: "PROGRESS_UPDATE",
+          message: `Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`
+        });
+      }
+      
+      addButton.click();
+    }
     
-    batchPromise = batchPromise.then(() => {
-      return new Promise(resolve => {
-        console.log(`Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`);
-        
-        // Отправляем обновление о прогрессе каждые 5 нажатий или на последнем
-        if (i % 5 === 0 || i === batchSize - 1) {
-          chrome.runtime.sendMessage({
-            type: "PROGRESS_UPDATE",
-            message: `Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`
-          });
-        }
-        
-        addButton.click();
-        
-        // Проверяем, увеличилось ли количество полей 
-        let checkInterval;
-        const startTime = Date.now();
-        const timeout = 3000; // 3 секунды максимальное ожидание
-        const initialFieldCount = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]').length;
-        
-        checkInterval = setInterval(() => {
-          // Если прошло больше timeout, прекращаем ожидание
-          if (Date.now() - startTime > timeout) {
-            clearInterval(checkInterval);
-            console.log(`Превышено время ожидания для поля ${currentFieldIndex + 1}, продолжаем...`);
-            resolve();
-            return;
-          }
-          
-          // Проверяем, изменилось ли количество полей
-          const currentFieldCount = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]').length;
-          if (currentFieldCount > initialFieldCount) {
-            clearInterval(checkInterval);
-            console.log(`Поле ${currentFieldIndex + 1} успешно создано`);
-            resolve();
-          }
-        }, 100); // Проверяем каждые 100 мс
-      });
-    });
-  }
-  
-  return batchPromise;
+    // Разрешаем промис без проверки полей - проверка будет выполнена после создания всех пакетов
+    setTimeout(resolve, 300); // Небольшая пауза для стабильности
+  });
 }
 
 // Заполнение всех полей КИЗ
