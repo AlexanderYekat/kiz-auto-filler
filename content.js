@@ -1,33 +1,39 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.14
+// @version      2025.04.03.19
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.14 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.19 (тест кнопки) активировано');
 
-// Поиск кнопки "Добавить вручную"
+// Поиск кнопки "Добавить КИЗ"
 function findAddButton() {
-  console.log('Ищем кнопку "Добавить вручную"...');
+  console.log('Ищем кнопку "Добавить КИЗ"...');
   
-  // Получаем все div с классом MuiStack-root
-  const stackDivs = document.querySelectorAll('div.MuiStack-root');
-  console.log(`Найдено ${stackDivs.length} div с классом MuiStack-root`);
+  // Ищем кнопку напрямую по тексту
+  const buttons = document.querySelectorAll('button');
+  console.log(`Найдено ${buttons.length} кнопок на странице`);
   
-  // Проходим по каждому div и ищем в нем нужную кнопку
-  for (const div of stackDivs) {
-    if (div.className.includes('css-1ktmlak')) {
-      console.log('Найден div с классом css-1ktmlak:', div);
-      
-      const button = div.querySelector('button');
-      if (button && button.textContent.trim() === 'Добавить вручную') {
-        console.log('Найдена кнопка "Добавить вручную":', button);
-        return button;
-      }
+  for (const button of buttons) {
+    if (button.textContent.trim() === 'Добавить КИЗ') {
+      console.log('Найдена кнопка "Добавить КИЗ":', button);
+      return button;
     }
   }
   
-  console.log('Кнопка "Добавить вручную" не найдена');
+  // Запасной вариант: ищем по структуре и классам
+  const grids = document.querySelectorAll('div.MuiGrid-root');
+  console.log(`Найдено ${grids.length} div с классом MuiGrid-root`);
+  
+  for (const grid of grids) {
+    const button = grid.querySelector('button.MuiButtonBase-root.MuiButton-root.css-mgv5rm');
+    if (button && button.textContent.trim() === 'Добавить КИЗ') {
+      console.log('Найдена кнопка "Добавить КИЗ" через структуру:', button);
+      return button;
+    }
+  }
+  
+  console.log('Кнопка "Добавить КИЗ" не найдена');
   return null;
 }
 
@@ -35,8 +41,8 @@ function findAddButton() {
 function findAndFillKizField(kizValue) {
   console.log('Ищем поле для ввода КИЗ...');
   
-  // Ищем поле ввода по имени (атрибут name)
-  const kizInput = document.querySelector('input[name="product.extra_inf.good_identification_numbers[0].id"]');
+  // Ищем поле ввода по имени (атрибут name) с правильным pattern
+  const kizInput = document.querySelector('input[name="product.extra_inf.good_identification_numbers[0].cis[0]"]');
   
   if (kizInput) {
     console.log('Найдено поле для ввода КИЗ:', kizInput);
@@ -45,41 +51,17 @@ function findAndFillKizField(kizValue) {
     kizInput.value = kizValue;
     
     // Создаем событие ввода для активации валидации и других обработчиков
-    const inputEvent = new Event('input', { bubbles: true });
-    kizInput.dispatchEvent(inputEvent);
+    //const inputEvent = new Event('input', { bubbles: true });
+    //kizInput.dispatchEvent(inputEvent);
     
     // Создаем событие изменения для активации валидации и других обработчиков
-    const changeEvent = new Event('change', { bubbles: true });
-    kizInput.dispatchEvent(changeEvent);
+    //const changeEvent = new Event('change', { bubbles: true });
+    //kizInput.dispatchEvent(changeEvent);
     
     console.log('Поле КИЗ успешно заполнено значением:', kizValue);
     return true;
   } else {
-    console.log('Поле для ввода КИЗ не найдено');
-    
-    // Попробуем найти по более общему селектору (по классу и типу)
-    const inputs = document.querySelectorAll('input.MuiInputBase-input.MuiInput-input');
-    console.log(`Найдено ${inputs.length} полей ввода с классом MuiInputBase-input`);
-    
-    for (const input of inputs) {
-      if (input.id && input.id.startsWith('mui-') && input.required) {
-        console.log('Найдено поле ввода, похожее на поле КИЗ:', input);
-        
-        // Устанавливаем значение
-        input.value = kizValue;
-        
-        // Создаем события ввода и изменения
-        const inputEvent = new Event('input', { bubbles: true });
-        input.dispatchEvent(inputEvent);
-        
-        const changeEvent = new Event('change', { bubbles: true });
-        input.dispatchEvent(changeEvent);
-        
-        console.log('Альтернативное поле успешно заполнено значением:', kizValue);
-        return true;
-      }
-    }
-    
+    console.log('Поле для ввода КИЗ не найдено');    
     return false;
   }
 }
@@ -88,8 +70,8 @@ function findAndFillKizField(kizValue) {
 function findLastKizFieldIndex() {
   console.log('Ищем все поля для ввода КИЗ и определяем последний индекс...');
   
-  // Используем CSS-селектор для поиска всех полей ввода с нужным шаблоном атрибута name
-  const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]');
+  // Используем CSS-селектор для поиска всех полей ввода с правильным pattern
+  const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers[0].cis["]');
   console.log(`Найдено ${kizInputs.length} полей ввода КИЗ`);
   
   if (kizInputs.length === 0) {
@@ -97,7 +79,22 @@ function findLastKizFieldIndex() {
     return -1;
   }
   
-  return kizInputs.length - 1;
+  // Находим максимальный индекс среди полей
+  let maxIndex = -1;
+  for (const input of kizInputs) {
+    const name = input.getAttribute('name');
+    // Извлекаем индекс из названия поля (последнее число в квадратных скобках)
+    const match = name.match(/cis\[(\d+)\]/);
+    if (match && match[1]) {
+      const index = parseInt(match[1], 10);
+      if (index > maxIndex) {
+        maxIndex = index;
+      }
+    }
+  }
+  
+  console.log(`Максимальный индекс среди полей КИЗ: ${maxIndex}`);
+  return maxIndex;
 }
 
 // Создание и заполнение нескольких полей КИЗ
@@ -108,13 +105,13 @@ function createAndFillKizFields(kizValues) {
   const startIndex = findLastKizFieldIndex();
   console.log(`Текущий последний индекс полей КИЗ: ${startIndex}`);
   
-  // Находим кнопку "Добавить вручную"
+  // Находим кнопку "Добавить КИЗ"
   const addButton = findAddButton();
   if (!addButton) {
-    console.error('Не удалось найти кнопку "Добавить вручную"');
+    console.error('Не удалось найти кнопку "Добавить КИЗ"');
     return Promise.resolve({ 
       success: false,
-      message: 'Не удалось найти кнопку "Добавить вручную"'
+      message: 'Не удалось найти кнопку "Добавить КИЗ"'
     });
   }
   
@@ -194,13 +191,13 @@ function createFieldsBatch(addButton, batchSize, processedFields, totalFields) {
     // Создаем все поля
     for (let i = 0; i < batchSize; i++) {
       const currentFieldIndex = processedFields + i;
-      console.log(`Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`);
+      console.log(`Нажимаем кнопку "Добавить КИЗ" (${currentFieldIndex + 1}/${totalFields})`);
       
       // Отправляем обновление о прогрессе каждые 5 нажатий или на последнем
       if (i % 5 === 0 || i === batchSize - 1) {
         chrome.runtime.sendMessage({
           type: "PROGRESS_UPDATE",
-          message: `Нажимаем кнопку "Добавить вручную" (${currentFieldIndex + 1}/${totalFields})`
+          message: `Нажимаем кнопку "Добавить КИЗ" (${currentFieldIndex + 1}/${totalFields})`
         });
       }
       
@@ -216,8 +213,8 @@ function createFieldsBatch(addButton, batchSize, processedFields, totalFields) {
 function fillAllKizFields(kizValues) {
   console.log('Заполняем все поля КИЗ...');
   
-  // Находим все поля для ввода КИЗ
-  const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers"][name$=".id"]');
+  // Находим все поля для ввода КИЗ с правильным pattern
+  const kizInputs = document.querySelectorAll('input[name^="product.extra_inf.good_identification_numbers[0].cis["]');
   console.log(`Найдено ${kizInputs.length} полей для ввода КИЗ`);
   
   chrome.runtime.sendMessage({
