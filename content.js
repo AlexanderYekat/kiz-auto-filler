@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         УПД: Тест нажатия кнопки
-// @version      2025.04.03.26
+// @version      2025.04.03.27
 // @description  Тест функции нажатия кнопки
 // ==/UserScript==
 
-console.log('Расширение УПД 2025.04.03.26 (тест кнопки) активировано');
+console.log('Расширение УПД 2025.04.03.27 (тест кнопки) активировано');
 
 // Поиск кнопки "Добавить КИЗ"
 function findAddButton() {
@@ -21,9 +21,9 @@ function findAddButton() {
     }
   }
   
-  // Запасной вариант: ищем по структуре и классам
-  const grids = document.querySelectorAll('div.MuiGrid-root');
-  console.log(`Найдено ${grids.length} div с классом MuiGrid-root`);
+  // Поиск через структуру элементов
+  const grids = document.querySelectorAll('.MuiGrid-root.MuiGrid-container');
+  console.log(`Найдено ${grids.length} контейнеров .MuiGrid-root.MuiGrid-container`);
   
   for (const grid of grids) {
     const button = grid.querySelector('button.MuiButtonBase-root.MuiButton-root.css-mgv5rm');
@@ -33,16 +33,16 @@ function findAddButton() {
     }
   }
   
-  console.log('Кнопка "Добавить КИЗ" не найдена, пробуем найти кнопку "Добавить вручную"');
-  
-  // Если не нашли кнопку "Добавить КИЗ", пробуем найти и нажать "Добавить вручную"
+  // Если кнопка не найдена, ищем кнопку "Добавить вручную"
   const addManuallyButton = findAddManuallyButton();
   if (addManuallyButton) {
-    console.log('Нажимаем кнопку "Добавить вручную"');
-    addManuallyButton.click();
+    console.log('Найдена кнопка "Добавить вручную", нажимаем на нее...');
     
     // Даем время для обработки клика и обновления DOM
     return new Promise(resolve => {
+      // Нажимаем на кнопку "Добавить вручную"
+      addManuallyButton.click();
+      
       setTimeout(() => {
         console.log('Повторно ищем кнопку "Добавить КИЗ" после нажатия "Добавить вручную"');
         
@@ -51,7 +51,10 @@ function findAddButton() {
         for (const button of buttons) {
           if (button.textContent.trim() === 'Добавить КИЗ') {
             console.log('Найдена кнопка "Добавить КИЗ" после нажатия "Добавить вручную":', button);
-            resolve(button);
+            resolve({
+              button: button,
+              manuallyAdded: true  // Отмечаем, что было автоматически создано одно поле
+            });
             return;
           }
         }
@@ -61,8 +64,11 @@ function findAddButton() {
         for (const grid of grids) {
           const button = grid.querySelector('button.MuiButtonBase-root.MuiButton-root.css-mgv5rm');
           if (button && button.textContent.trim() === 'Добавить КИЗ') {
-            console.log('Найдена кнопка "Добавить КИЗ" через структуру после нажатия "Добавить вручную":', button);
-            resolve(button);
+            console.log('Найдена кнопка "Добавить КИЗ" после нажатия "Добавить вручную":', button);
+            resolve({
+              button: button,
+              manuallyAdded: true  // Отмечаем, что было автоматически создано одно поле
+            });
             return;
           }
         }
@@ -181,7 +187,20 @@ function createAndFillKizFields(kizValues) {
     const buttonPromise = findAddButton();
     
     // Обрабатываем результат - может быть как Promise, так и прямой результат
-    Promise.resolve(buttonPromise).then(addButton => {
+    Promise.resolve(buttonPromise).then(result => {
+      // Проверяем, является ли результат объектом с полем button или кнопкой напрямую
+      let addButton = null;
+      let manuallyAdded = false;
+      
+      if (result && result.button) {
+        // Это результат от Promise с объектом {button, manuallyAdded}
+        addButton = result.button;
+        manuallyAdded = result.manuallyAdded;
+      } else {
+        // Это прямой результат - кнопка
+        addButton = result;
+      }
+      
       if (!addButton) {
         console.error('Не удалось найти кнопку "Добавить КИЗ"');
         chrome.runtime.sendMessage({
@@ -193,17 +212,27 @@ function createAndFillKizFields(kizValues) {
         return;
       }
       
+      // Если была нажата кнопка "Добавить вручную", повторно проверяем количество полей,
+      // так как система могла автоматически создать одно поле
+      let currentIndex = startIndex;
+      
+      if (manuallyAdded) {
+        // Повторно проверяем индекс полей после нажатия "Добавить вручную"
+        currentIndex = findLastKizFieldIndex();
+        console.log(`После нажатия "Добавить вручную", последний индекс полей КИЗ: ${currentIndex}`);
+      }
+      
       // Шаг 2: Узнать, сколько полей нужно создать
-      // Учитываем, что startIndex - это индекс последнего поля (0-based),
-      // то есть, если startIndex = 0, то у нас уже есть 1 поле
-      // если startIndex = 2, то у нас уже есть 3 поля (с индексами 0, 1, 2)
-      const existingFieldCount = startIndex >= 0 ? startIndex + 1 : 0;
+      // Учитываем, что currentIndex - это индекс последнего поля (0-based),
+      // то есть, если currentIndex = 0, то у нас уже есть 1 поле
+      // если currentIndex = 2, то у нас уже есть 3 поля (с индексами 0, 1, 2)
+      const existingFieldCount = currentIndex >= 0 ? currentIndex + 1 : 0;
       
       // Теперь вычисляем точно, сколько полей нужно добавить
       const fieldsToCreate = Math.max(0, kizValues.length - existingFieldCount);
       const batchSize = 10; // Создаем по 10 полей за раз для оптимизации
       
-      console.log(`Найдено ${existingFieldCount} существующих полей КИЗ (последний индекс: ${startIndex})`);
+      console.log(`Найдено ${existingFieldCount} существующих полей КИЗ (последний индекс: ${currentIndex})`);
       console.log(`Необходимо создать ${fieldsToCreate} новых полей КИЗ`);
       
       chrome.runtime.sendMessage({
@@ -244,36 +273,63 @@ function createAndFillKizFields(kizValues) {
       // Шаг 3: Создать необходимое количество полей
       let processedFields = 0;
       
-      // Рекурсивно создаем поля пакетами
-      createFieldsBatch(addButton, batchSize, processedFields, fieldsToCreate).then(() => {
-        console.log(`Все ${fieldsToCreate} полей КИЗ созданы`);
-        
-        // Шаг 4: Заполнить созданные поля
-        chrome.runtime.sendMessage({
-          type: "PROGRESS_UPDATE",
-          message: `Все поля созданы, начинаем заполнение...`
-        });
-        
-        // Даем браузеру время на отрисовку всех полей
-        setTimeout(() => {
-          console.log(`Заполняем поля значениями КИЗ`);
+      // Рекурсивная функция для создания всех необходимых полей по пакетам
+      function createAllFieldsBatches() {
+        if (processedFields >= fieldsToCreate) {
+          console.log(`Все ${fieldsToCreate} полей КИЗ созданы`);
           
-          const filledCount = fillAllKizFields(kizValues);
-          console.log(`Заполнено ${filledCount} полей КИЗ`);
-          
+          // Все поля созданы, переходим к заполнению
           chrome.runtime.sendMessage({
             type: "PROGRESS_UPDATE",
-            message: `Заполнено ${filledCount} полей КИЗ`
+            message: `Все поля созданы, начинаем заполнение...`
           });
           
-          resolve({
-            success: true,
-            fieldsCreated: fieldsToCreate,
-            filledCount: filledCount,
-            message: `Заполнено ${filledCount} полей КИЗ`
+          // Даем браузеру время на отрисовку всех полей
+          setTimeout(() => {
+            console.log(`Заполняем поля значениями КИЗ`);
+            
+            const filledCount = fillAllKizFields(kizValues);
+            console.log(`Заполнено ${filledCount} полей КИЗ`);
+            
+            chrome.runtime.sendMessage({
+              type: "PROGRESS_UPDATE",
+              message: `Заполнено ${filledCount} полей КИЗ`
+            });
+            
+            resolve({
+              success: true,
+              fieldsCreated: fieldsToCreate,
+              filledCount: filledCount,
+              message: `Заполнено ${filledCount} полей КИЗ`
+            });
+          }, 1500); // Увеличиваем ожидание до 1.5 секунд
+          
+          return;
+        }
+        
+        // Создаем очередной пакет полей
+        createFieldsBatch(addButton, batchSize, processedFields, fieldsToCreate)
+          .then(() => {
+            // Увеличиваем счетчик обработанных полей
+            processedFields += Math.min(batchSize, fieldsToCreate - processedFields);
+            console.log(`Обработано ${processedFields} из ${fieldsToCreate} полей`);
+            
+            chrome.runtime.sendMessage({
+              type: "PROGRESS_UPDATE",
+              message: `Создано ${processedFields} из ${fieldsToCreate} полей...`
+            });
+            
+            // Рекурсивно вызываем функцию для создания следующего пакета
+            setTimeout(createAllFieldsBatches, 300);
+          })
+          .catch(error => {
+            console.error('Ошибка при создании пакета полей:', error);
+            reject(error);
           });
-        }, 1500); // Увеличиваем ожидание до 1.5 секунд
-      });
+      }
+      
+      // Запускаем рекурсивную функцию создания полей
+      createAllFieldsBatches();
     }).catch(error => {
       console.error('Ошибка при создании и заполнении полей КИЗ:', error);
       chrome.runtime.sendMessage({
