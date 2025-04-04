@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "УПД: Обработка КИЗ из CSV",
-  "version": "2025.04.03.19",
+  "version": "2025.04.03.25",
   "description": "Расширение для обработки CSV-файлов с КИЗ и автоматического заполнения полей на сайте clothes.crpt.ru",
   "permissions": [
     "activeTab",
