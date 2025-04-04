@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    if (!file.name.endsWith('.csv')) {
-      showStatus('Пожалуйста, выберите файл CSV', 'error');
+    if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
+      showStatus('Пожалуйста, выберите файл CSV или TXT', 'error');
       csvFileInfo.textContent = 'Неверный формат файла';
       processCsvButton.disabled = true;
       return;
@@ -139,9 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.body.appendChild(resultsContainer);
   resultsContainer.style.display = 'none';
   
-  // Слушатель кнопки "Обработать CSV-файл"
+  // Слушатель кнопки "Обработать файл"
   processCsvButton.addEventListener('click', function() {
-    console.log('Нажата кнопка "Обработать CSV-файл"');
+    console.log('Нажата кнопка "Обработать файл"');
     
     // Очищаем результаты предыдущей обработки
     resultsContainer.innerHTML = '';
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    showStatus('Обработка CSV-файла...', 'info');
+    showStatus('Обработка файла...', 'info');
     processCsvButton.disabled = true;
     processCsvButton.textContent = 'Обработка...';
     
@@ -168,116 +168,81 @@ document.addEventListener('DOMContentLoaded', function() {
     reader.onload = function(e) {
       console.log('📄 Файл успешно прочитан');
       const contents = e.target.result;
+      const fileName = file.name;
       
-      // Отладочный вывод начала содержимого
-      console.log('Первые 50 символов файла:', contents.substring(0, 50));
+      // Обрабатываем содержимое файла (определяем тип и формат)
+      const kizValues = processFileContents(contents, fileName);
       
-      const lines = contents.split(/\r?\n/);
-      console.log('📊 CSV файл прочитан, всего строк:', lines.length);
-      addProgressMessage(`CSV файл прочитан, всего строк: ${lines.length}`);
-      
-      if (lines.length === 0) {
-        console.log('⚠️ Файл не содержит строк');
-        addProgressMessage('⚠️ Файл не содержит строк');
-        showStatus('Файл пуст или имеет неверный формат', 'error');
+      if (kizValues.length === 0 || kizValues[0].values.length === 0) {
+        showStatus('Не найдено значений КИЗ в файле', 'error');
         processCsvButton.disabled = false;
-        processCsvButton.textContent = 'Обработать CSV-файл';
+        processCsvButton.textContent = 'Обработать файл';
         return;
       }
       
-      // Отладочный вывод первой строки
-      console.log('Первая строка CSV:', lines[0]);
-      addProgressMessage(`Начало обработки строк CSV...`);
+      // Сохраняем данные КИЗ глобально
+      globalKizValues = kizValues;
       
-      const kizValues = [];
+      // Выводим информацию о найденных значениях КИЗ
+      const totalValues = kizValues.reduce((total, row) => total + row.values.length, 0);
+      showStatus(`Найдено ${totalValues} значений КИЗ`, 'success');
+      addProgressMessage(`✅ Найдено всего ${totalValues} значений КИЗ`);
       
-      lines.forEach((line, index) => {
-        if (!line.trim()) {
-          console.log(`Строка ${index + 1}: пустая, пропускаем`);
-          return; // Пропускаем пустые строки
-        }
-        
-        try {
-          const values = parseCSVLine(line);
-          
-          console.log(`Строка ${index + 1}: разбор завершен, найдено ${values.length} значений`);
-          
-          // Пропускаем первые два значения (1 и КИЗ) и обрабатываем только остальные
-          if (values.length > 2) {
-            // Выводим только значения КИЗ, начиная с третьего элемента (индекс 2)
-            console.log(`Строка ${index + 1}, значения КИЗ:`, values.slice(2));
-            
-            // Сохраняем значения для возможного дальнейшего использования
-            kizValues.push({
-              values: values.slice(2)
-            });
-            
-            // Показываем пользователю каждую 10-ю строку или последнюю
-            if (index % 10 === 0 || index === lines.length - 1) {
-              addProgressMessage(`Обработано строк: ${index + 1} из ${lines.length}`);
-            }
-          } else {
-            console.log(`⚠️ Строка ${index + 1}: недостаточно значений (${values.length}), ожидалось > 2`);
-          }
-        } catch (error) {
-          console.error(`❌ Ошибка при обработке строки ${index + 1}:`, error);
-        }
-      });
-      
-      console.log('✅ Всего обработано записей с КИЗ:', kizValues.length);
-      addProgressMessage(`✅ Всего обработано записей с КИЗ: ${kizValues.length}`);
-      
-      // Восстанавливаем кнопку
+      // Включаем кнопку заполнения полей КИЗ
+      fillMultipleKizButton.disabled = false;
       processCsvButton.disabled = false;
-      processCsvButton.textContent = 'Обработать CSV-файл';
+      processCsvButton.textContent = 'Обработать файл';
       
-      if (kizValues.length > 0) {
-        showStatus(`Успешно обработано ${kizValues.length} записей из CSV-файла`, 'success');
-        
-        // Сохраняем КИЗы в глобальную переменную и активируем кнопки
-        globalKizValues = kizValues;
-        fillMultipleKizButton.disabled = false;
-        
-        // Отображаем результаты прямо в интерфейсе
-        resultsContainer.style.display = 'block';
-        const header = document.createElement('h3');
-        header.textContent = 'Результаты обработки CSV:';
-        resultsContainer.appendChild(header);
-        
-        const info = document.createElement('p');
-        info.textContent = `Обработано ${kizValues.length} строк, извлечено ${kizValues.reduce((acc, row) => acc + row.values.length, 0)} значений КИЗ.`;
-        resultsContainer.appendChild(info);
-        
-        // Показываем первые 5 строк с КИЗ в качестве примера
-        if (kizValues.length > 0) {
-          const exampleHeader = document.createElement('p');
-          exampleHeader.innerHTML = '<strong>Примеры КИЗ:</strong>';
-          resultsContainer.appendChild(exampleHeader);
-          
-          const exampleList = document.createElement('ul');
-          const limit = Math.min(5, kizValues.length);
-          
-          for (let i = 0; i < limit; i++) {
-            const kizRow = kizValues[i];
-            if (kizRow.values.length > 0) {
-              const item = document.createElement('li');
-              item.textContent = `Строка ${i + 1}: ${kizRow.values[0]}${kizRow.values.length > 1 ? ` (+ ещё ${kizRow.values.length - 1})` : ''}`;
-              exampleList.appendChild(item);
-            }
-          }
-          
-          resultsContainer.appendChild(exampleList);
+      // Отображаем результаты обработки
+      resultsContainer.innerHTML = '';
+      resultsContainer.style.display = 'block';
+      
+      const resultsHeader = document.createElement('h3');
+      resultsHeader.textContent = 'Результаты обработки файла:';
+      resultsHeader.style.fontSize = '14px';
+      resultsHeader.style.marginTop = '15px';
+      resultsHeader.style.marginBottom = '5px';
+      resultsContainer.appendChild(resultsHeader);
+      
+      const exampleHeader = document.createElement('p');
+      exampleHeader.textContent = 'Примеры найденных значений КИЗ:';
+      exampleHeader.style.fontSize = '12px';
+      exampleHeader.style.margin = '5px 0';
+      resultsContainer.appendChild(exampleHeader);
+      
+      const exampleList = document.createElement('ul');
+      const limit = Math.min(5, kizValues.length);
+      
+      for (let i = 0; i < limit; i++) {
+        const kizRow = kizValues[i];
+        if (kizRow.values.length > 0) {
+          const item = document.createElement('li');
+          item.textContent = `Строка ${i + 1}: ${kizRow.values[0]}${kizRow.values.length > 1 ? ` (+ ещё ${kizRow.values.length - 1})` : ''}`;
+          exampleList.appendChild(item);
         }
-      } else {
-        showStatus('Не найдено записей с КИЗ в файле', 'error');
       }
+      
+      resultsContainer.appendChild(exampleList);
+      
+      // Добавляем сообщение про возможную длительную загрузку
+      const warningMessage = document.createElement('p');
+      warningMessage.innerHTML = '<strong>Важно:</strong> После нажатия кнопки "Заполнить все поля КИЗ", значения будут отправлены на страницу. ' +
+        'Загрузка может занять некоторое время (до нескольких минут), но ваши данные будут отправлены.';
+      warningMessage.style.fontSize = '12px';
+      warningMessage.style.marginTop = '10px';
+      warningMessage.style.padding = '8px';
+      warningMessage.style.backgroundColor = '#fff3e0';
+      warningMessage.style.border = '1px solid #ffcc80';
+      warningMessage.style.borderRadius = '4px';
+      
+      resultsContainer.appendChild(warningMessage);
     };
     
     reader.onerror = function(error) {
       console.error('❌ Ошибка при чтении файла:', error);
       showStatus('Ошибка чтения файла', 'error');
       processCsvButton.disabled = false;
-      processCsvButton.textContent = 'Обработать CSV-файл';
+      processCsvButton.textContent = 'Обработать файл';
     };
     
     reader.readAsText(file, 'UTF-8'); // Явно указываем кодировку UTF-8
@@ -331,4 +296,119 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   });
+  
+  // Функция для обработки содержимого файла (определяет тип файла и обрабатывает соответственно)
+  function processFileContents(contents, fileName) {
+    console.log('📄 Обработка содержимого файла...');
+    
+    // Отладочный вывод начала содержимого
+    console.log('Первые 50 символов файла:', contents.substring(0, 50));
+    
+    const lines = contents.split(/\r?\n/).filter(line => line.trim() !== '');
+    console.log(`📊 Файл прочитан, всего строк: ${lines.length}`);
+    addProgressMessage(`Файл прочитан, всего строк: ${lines.length}`);
+    
+    if (lines.length === 0) {
+      showStatus('Файл не содержит данных', 'error');
+      processCsvButton.disabled = false;
+      processCsvButton.textContent = 'Обработать файл';
+      return;
+    }
+    
+    // Автоматическое определение формата файла
+    let isTxtFile = fileName.endsWith('.txt');
+    
+    // Дополнительное определение формата по содержимому
+    // Если файл содержит запятые, кавычки или имеет другие признаки CSV
+    const csvIndicators = lines[0].includes('КИЗ');
+    const isCsvFormat = csvIndicators || (!isTxtFile && lines[0].includes('киз'));
+    
+    console.log(`Определен формат файла: ${isCsvFormat ? 'CSV' : 'TXT'}`);
+    addProgressMessage(`Определен формат файла: ${isCsvFormat ? 'CSV' : 'TXT'}`);
+    
+    // Обработка файла в зависимости от формата
+    let kizValues = [];
+    
+    if (isCsvFormat) {
+      // Обработка CSV формата
+      kizValues = processCSVFormat(lines);
+    } else {
+      // Обработка TXT формата (одно значение в строке)
+      kizValues = processTXTFormat(lines);
+    }
+    
+    return kizValues;
+  }
+
+  // Обработка файла в формате CSV
+  function processCSVFormat(lines) {
+    console.log('Обработка в формате CSV...');
+    addProgressMessage('Обработка в формате CSV...');
+    
+    const kizValues = [];
+    let kizRow = { values: [] };
+    
+    // Проверяем первую строку на наличие заголовков
+    const firstLine = lines[0];
+    const isHeader = firstLine.toLowerCase().includes('киз') || 
+                    firstLine.toLowerCase().includes('кис') || 
+                    firstLine.toLowerCase().includes('kiz') || 
+                    firstLine.toLowerCase().includes('cis');
+    
+    // Начинаем со второй строки, если первая - заголовок
+    const startIndex = isHeader ? 1 : 0;
+    
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === '') continue;
+      
+      const values = parseCSVLine(line);
+      
+      // Если найдены какие-либо значения в строке
+      if (values && values.length > 0) {
+        // Обрабатываем каждое значение в строке
+        for (let j = 0; j < values.length; j++) {
+          let value = values[j].trim();
+          if (value) {
+            kizRow.values.push(value);
+          }
+        }
+      }
+    }
+    
+    // Добавляем обработанную строку в результат
+    if (kizRow.values.length > 0) {
+      kizValues.push(kizRow);
+    }
+    
+    return kizValues;
+  }
+
+  // Обработка файла в формате TXT (по одному значению в строке)
+  function processTXTFormat(lines) {
+    console.log('Обработка в формате TXT...');
+    addProgressMessage('Обработка в формате TXT...');
+    
+    const kizValues = [];
+    let kizRow = { values: [] };
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === '') continue;
+      
+      // В TXT файле - каждая строка одно значение, обрезаем до 31 символа
+      let value = line.substring(0, 31);
+      
+      if (value) {
+        kizRow.values.push(value);
+      }
+    }
+    
+    // Добавляем обработанную строку в результат
+    if (kizRow.values.length > 0) {
+      kizValues.push(kizRow);
+    }
+    
+    return kizValues;
+  }
 });
